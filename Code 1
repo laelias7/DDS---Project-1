@@ -1,1 +1,123 @@
 
+
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(ggplot2)
+library(ggpubr)
+library(bindrcpp)
+
+#BREW Import
+brew<- read.csv("breweries.csv" , header=TRUE)
+colnames(brew)<- c('Brewery_id', 'Name', 'City', 'State')
+#head(brew)
+
+#How many breweries in each state?
+bbs <-(brew%>% group_by(State) %>% count(State))
+bbs<-as.data.frame(bbs)
+#bbs 
+kable(head(bbs[,1:2]),
+      format = "pandoc", # default
+      digits = 1,        # specify decimal places
+      caption = "Number of Breweries by State",
+      col.names = c("State","Breweries"),
+      row.names = FALSE,
+      align = c("l"))   # align = c("c","c","c","r")
+
+
+#BEER Import and CLEANUP
+df<- read.csv("beers.csv" , header=TRUE)
+df <- df[order(df$Beer_ID),]
+#head(df,7)
+
+#THERE MUST BE AN EASIER WAY TO DO THIS!!!!!
+#Remove The Kimmie and You're my Boy, Blue lines, names are split. Remove last column
+df<-df[-grep("1802", df$ABV),]
+df<-df[-grep("1738", df$ABV),]
+df=df[,c(1,2,3, 4, 5, 6, 7)]
+#head(df, 5)
+
+#Recreate error Lines to add back in
+dfa<-data.frame("the Kimmie,  the Yink and the Holy Gose","1738", "0.048", "", "172", "Gose", "12")
+colnames(dfa)<- c('Name', 'Beer_ID', 'ABV', 'IBU', 'Brewery_id', 'Style', 'Ounces')
+
+dfb<-data.frame("You're my Boy, Blue","1802", "0.05", "", "309", "Fruit/Vegtable Beer", "12")
+colnames(dfb)<- c('Name', 'Beer_ID', 'ABV', 'IBU', 'Brewery_id', 'Style', 'Ounces')
+
+dfc <- rbind(dfb, dfa)
+
+#Put corrected lines back into file
+df <- rbind(df, dfc)
+#head(df)
+
+#Merge two files
+brew<-merge(brew,df,by = "Brewery_id",all.x = TRUE)
+colnames(brew)<- c('Brewery_id', 'Name', 'City', 'State', 'Beer', 'Beer_ID', 'ABV', 'IBU', 'Style', 'Ounces')
+#str(brew)
+brew$ABV <- as.numeric(brew$ABV)
+brew$IBU <- as.numeric(brew$IBU)
+
+#First 6 observations
+kable(head(brew,6))%>%
+  kable_styling()
+
+#Last 6 observations
+kable(tail(brew,6))%>%
+  kable_styling()
+
+#count N/As in IBU column
+colSums(is.na(brew))
+  
+
+#Compute median alcohol content and IBU for each state. Plot a bar chart to compare.
+beers <-as.data.frame(brew%>% group_by(State) %>% summarise(MedianABV=median(ABV, na.rm=TRUE), 
+  MedianIBU=median(IBU, na.rm=TRUE)))
+#beers
+
+#NEED TO FIND THAT PAR CODE TO PUT THEM SIDE BY SIDE
+#Graph ABV
+ggplot(beers, aes(x=reorder(State, -MedianABV), y=MedianABV, fill=MedianABV)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Median ABV") +
+  ggtitle("Median ABV by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+coord_flip()
+  
+#Graph IBU
+ggplot(beers, aes(x=reorder(State, -MedianIBU), y=MedianIBU, fill=MedianIBU)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Median IBU") +
+  ggtitle("Median IBU by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+coord_flip()
+
+#States with the highest ABV and IBU
+ma <- data.frame(brew[order(-brew$ABV),])
+ma=ma[1,c(4,5,7,8)]
+ma[1, ]
+mi <- data.frame(brew[order(-brew$IBU),])
+mi=mi[1,c(4,5,7,8)]
+mi[1, ]
+top<-rbind(ma, mi)
+top[is.na(top)] <- ""
+
+kable(head(top[,1:4]),
+      format = "pandoc", # default
+      digits = 3,        # specify decimal places
+      caption = "State with Highest ABV and Most Bitter Beer",
+      col.names = c("State","Beer","ABV","IBV"),
+      row.names = FALSE,
+      align = c("l"))  # align = c("c","c","c","r")
+
+#Summary Statistics for ABV
+summary(brew$ABV, na.rm=TRUE)
+
+#Scatter Plot for ABV & IBU
+ggplot(brew, aes(IBU, ABV)) +
+geom_point(color="blue") +
+xlim(0,150)+ylim(0,.150)+
+  labs(x="IBU",y="ABV") +
+ggtitle("Bitterness v. Alchohol Content") +
+geom_smooth(method=lm, color="black", se=FALSE) 
