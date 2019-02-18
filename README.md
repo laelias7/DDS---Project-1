@@ -1,3 +1,2 @@
-# DDS---Project-1
-Team:  Linda Eliasen / Limin Zheng
-Our working repository for the project.
+DDS---Project-1
+Linda's working folder
