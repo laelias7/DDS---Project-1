@@ -121,3 +121,49 @@ xlim(0,150)+ylim(0,.150)+
   labs(x="IBU",y="ABV") +
 ggtitle("Bitterness v. Alchohol Content") +
 geom_smooth(method=lm, color="black", se=FALSE) 
+
+
+#ADDITIONAL DATA RUNS
+
+#Number of different craft beers in each state
+btype<-as.data.frame(brew %>% group_by(State)%>% summarise(BeerTypes = n_distinct(Beer)))
+btype<-btype[order(-btype$BeerTypes),]
+kable(btype)%>%
+  kable_styling(full_width = F)
+
+ggplot(btype, aes(x=reorder(State, -BeerTypes), y=BeerTypes, fill=BeerTypes)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Number") +
+  ggtitle("Number of Different Craft Beers by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  coord_flip()
+
+#Number of different beer types in each state
+bstyl<-as.data.frame(brew %>% group_by(State)%>% summarise(BeerStyles = n_distinct(Style)))
+bstyl<-bstyl[order(-bstyl$BeerStyles),]
+kable(bstyl)%>%
+  kable_styling(full_width = F)
+
+ggplot(bstyl, aes(x=reorder(State, -BeerStyles), y=BeerStyles, fill=BeerStyles)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Number") +
+  ggtitle("Number of Different Beer Styles by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  coord_flip()
+
+BrndStyl <- merge(btype, bstyl, by='State')
+BrndStyl<-BrndStyl[order(-BrndStyl$BeerStyles),]
+kable(BrndStyl)%>%
+  kable_styling(full_width = F)
+
+
+adult<- read.csv("18bState.csv" , header=TRUE)
+colnames(adult)<- c('State', 'AdultPopulation')
+
+
+charta <- merge(BrndStyl, adult, by='State')
+charta<-charta[order(-charta$BeerStyles),]
+kable(charta)%>%
+  kable_styling(full_width = F)
