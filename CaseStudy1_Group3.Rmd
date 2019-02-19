@@ -1,6 +1,6 @@
 ---
 title: "CaseStudy1_Group3"
-author: "Limin Zheng"
+author: "Limin Zheng/Linda Eliasen"
 date: "February 19, 2019"
 output: html_document
 ---
