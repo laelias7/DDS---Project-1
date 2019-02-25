@@ -52,9 +52,9 @@ sbystate$Barrels.Per.Year<-as.numeric(sbystate$Barrels.Per.Year)
 Top and Bottom of Brewery Data Set
 
 ```{r head}
-################ Does the follwoing commnented code necessary?################
-# brew <- brew %>%
-#   select(Brewery, Beer, Style, ABV, IBU, Ounces, City, State, Beer_ID, Brewery_id)
+#Select the columns
+ brew <- brew %>%
+   select(Brewery, Beer, Style, ABV, IBU, Ounces, City, State, Beer_ID, Brewery_id)
 # Print the top 6 rows of combined dataframe
 kable(head(brew,6))%>%
   kable_styling(full_width = F)
@@ -185,8 +185,8 @@ Summary statistics for the ABV variable (also adding in IBU)
 Alcohol_by_Volume<-summary(brew$ABV, na.rm=TRUE, digits = 3)
 International_Bitterness_Units<-summary(brew$IBU, na.rm=TRUE)
 
-Economic_Impact_In_Millions<-summary(state$`EconomicImpactM$`)#, digits=1)
-Annual_Production_Barrels<-summary(state$BarrelsPerYear)#, digits=0)
+Economic_Impact_In_Millions<-summary(brew.state$`EconomicImpactM$`)#, digits=1)
+Annual_Production_Barrels<-summary(brew.state$BarrelsPerYear)#, digits=0)
 
 abv<-rbind(Alcohol_by_Volume, International_Bitterness_Units)
 kable(abv)%>%
