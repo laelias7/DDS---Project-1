@@ -28,16 +28,21 @@ library(dataMaid)
 
 ## bringing in data files
 ```{r files}
-
-brew<- read.csv("breweries.csv" , header=TRUE, stringsAsFactors=FALSE)
-  colnames(brew)<- c('Brewery_id', 'Name', 'City', 'State')
-
+#Load brew.csv dataset, name as breweries
+breweries<- read.csv("breweries.csv" , header=TRUE, stringsAsFactors=FALSE)
+#Rename columns
+colnames(breweries)<- c('Brewery_id', 'Name', 'City', 'State')
+#Load beer.csv dataset
 beer <- read.csv("beers.csv" , header=TRUE, stringsAsFactors=FALSE)
-
-brew<-merge(brew,beer, by="Brewery_id",all.x = TRUE)
+#Outer merge beer and brew into object brew.
+brew<-merge(breweries,beer, by="Brewery_id",all.x = TRUE)
+#Rename columns
 colnames(brew)<- c('Brewery_id', 'Brewery', 'City', 'State', 'Beer', 'Beer_ID', 'ABV', 'IBU', 'Style', 'Ounces')
+#Change values in IBU column to numeric
 brew$IBU <- as.numeric(brew$IBU)
+#Find economic beer data from internet and read into dataframe sbystate
 sbystate <- read.csv("StateStats.csv" , header=TRUE, sep = ",", stringsAsFactors=FALSE)
+#Change values in following columns into numeric
 sbystate$Economic.Impact.Mil<-as.numeric(sbystate$Economic.Impact.Mil)
 sbystate$Economic.Impact.Rank<-as.numeric(sbystate$Economic.Impact.Rank)
 sbystate$Barrels.Per.Year<-as.numeric(sbystate$Barrels.Per.Year)
@@ -47,14 +52,16 @@ sbystate$Barrels.Per.Year<-as.numeric(sbystate$Barrels.Per.Year)
 Top and Bottom of Brewery Data Set
 
 ```{r head}
-brew <- brew %>% 
-	select(Brewery, Beer, Style, ABV, IBU, Ounces, City, State, Beer_ID, Brewery_id)
-
+################ Does the follwoing commnented code necessary?################
+# brew <- brew %>%
+#   select(Brewery, Beer, Style, ABV, IBU, Ounces, City, State, Beer_ID, Brewery_id)
+# Print the top 6 rows of combined dataframe
 kable(head(brew,6))%>%
   kable_styling(full_width = F)
 ```
 
 ```{r tail}
+#Print the last 6 rows of combined dataframe
 kable(tail(brew,6))%>%
   kable_styling(full_width = F)
 ```
@@ -62,39 +69,44 @@ kable(tail(brew,6))%>%
 
 Report the number of NA's in each column.
 ```{r missing}
+#Report the missing NAs in each column
 sha<-colSums(is.na(brew))
-kable(sha)%>%
-  kable_styling(full_width = F)
+ kable(sha)%>%
+   kable_styling(full_width = F)
 ```
 
 CRAFT BEER DEMOGRAPHICS BY STATE
 How many breweries are present in each state? Compute the median alcohol content and international bitterness unit for each state, plus adding in other data elements from third file
 ```{r facts}
-state <-as.data.frame(brew%>% group_by(State) 
+#Calculate how many breweries in each state. Calculate the median ABV and median IBU in each state, combine them into the same dataframe called brew.state.
+brew.state <-as.data.frame(brew%>% group_by(State) 
   %>% summarise(MedianABV=median(ABV, na.rm=TRUE), 
   MedianIBU=median(IBU, na.rm=TRUE),
-  Breweries = n_distinct(Brewery_id)))
-
-state$Breweries<- as.numeric(state$Breweries)
-
-state<-merge(state, sbystate, by="State",all.x = TRUE)
-colnames(state)<- c('State', 'MedianABV', 'MedianIBU', 'Breweries','BreweriesPerCapita', 'EconomicImpactM$', 'EconomicImpactRank', 'BarrelsPerYear', 'GallonsPerAdult')
-
-kable(state)%>%
+ Breweries = n_distinct(Brewery_id)))
+#Change column Breweries to numeric.
+brew.state$Breweries<- as.numeric(brew.state$Breweries)
+#Merge brew.state dataset with the economic beer data into one dataframe, called brew.state
+brew.state<-merge(brew.state, sbystate, by="State",all.x = TRUE)
+#Rename the columns in brew.state dataframe
+colnames(brew.state)<- c('State', 'MedianABV', 'MedianIBU', 'Breweries','BreweriesPerCapita', 'EconomicImpactM$', 'EconomicImpactRank', 'BarrelsPerYear', 'GallonsPerAdult')
+########Stylish the brew.state table in HTML,I think we do not need to print out the table#########
+brew.state.html <-
+kable(brew.state)%>%
 kable_styling(bootstrap_options = "striped", full_width = T)
+#write out csv file
+write.csv(brew.state, "brew.state.csv")
 ```
 
 
 Heat map number of breweries by state
 ```{r mapBreweries}
-
+#Get states map data
 mapdata <- get_data_from_map(download_map_data("countries/us/us-all"))
-
-#need to remove extra spaces from state abreviation
-state$State <- str_trim(state$State,side="left")
-state <- state %>% mutate(`hc-a2`= State);
-
-hcmap("countries/us/us-all", data = state, value = "Breweries",
+#Need to remove extra spaces from state abreviation
+brew.state$State <- str_trim(brew.state$State,side="left")
+brew.state <- brew.state %>% mutate(`hc-a2`= State);
+#Plot the heat map of breweries by state
+hcmap("countries/us/us-all", data = brew.state, value = "Breweries",
 	  joinBy = "hc-a2", name = "Breweries",
 	  dataLabels = list(enabled = TRUE, format = '{point.name}'),
 	  borderColor = "#FAFAFA", borderWidth = 0.1,
@@ -104,18 +116,22 @@ hcmap("countries/us/us-all", data = state, value = "Breweries",
 			 margin = 20, align = "center", 
 			 style = list(color = "#000000", 
 			 			 useHTML = TRUE))
+#Print out the table of num. of brews by state
+kable(brew.state[, c("Breweries", "State")])%>%
+kable_styling( full_width = T)
 ```
 
 Plot a bar chart to compare Median ABV and IBU by State
 ```{r echo=TRUE}
-
-ggplot(state, aes(x=reorder(State, -MedianABV),y=MedianABV, fill=MedianIBU))+labs(title="Plot of ABV by state", x="State", y="MedianABV", fill="median IBU")+geom_bar(stat="identity") + theme_bw() +theme(axis.text.x=element_text(angle=90, size = 7)) +theme(plot.title = element_text(hjust = 0.5))+theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+coord_flip()
+#Plot the bar chart to compare Median ABV and IBU by State. Note the missing IBU data in state SD
+ggplot(brew.state, aes(x=reorder(State, -MedianABV),y=MedianABV, fill=MedianIBU))+labs(title="Plot of ABV by state", x="State", y="MedianABV", fill="median IBU")+geom_bar(stat="identity") + theme_bw() +theme(axis.text.x=element_text(angle=90, size = 7)) +theme(plot.title = element_text(hjust = 0.5))+theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+coord_flip()
 ```
 
 charts side by side... still work in progress, want to turn into back to back
 ```{r abv_ibu}
 #Graph side by side
-abv<-ggplot(state, aes(x=State, y=MedianABV, fill=MedianABV)) + 
+#Median ABV bar chart
+abv<-ggplot(brew.state, aes(x=reorder(State, -MedianABV), y=MedianABV, fill=MedianABV)) + 
   geom_bar(stat="identity") +
   labs(x="State",y="Median ABV") +
   ggtitle("Median ABV by State") +
@@ -125,8 +141,8 @@ abv<-ggplot(state, aes(x=State, y=MedianABV, fill=MedianABV)) +
   theme(legend.text = element_text(colour="black", size =6))+
   theme(legend.title = element_blank()) +
   coord_flip() 
-
-ibu<-ggplot(state, aes(x=State, y=MedianIBU, fill=MedianIBU)) + 
+#Median IBU bar char
+ibu<-ggplot(brew.state, aes(x=reorder(State, -MedianIBU), y=MedianIBU, fill=MedianIBU)) + 
   geom_bar(stat="identity") +
   labs(x="State",y="Median IBU") +
   ggtitle("Median IBU by State") +
