@@ -1,13 +1,13 @@
 ---
-title: "Craft Beers"
-author: "Linda Eliasen/Limin Zheng"
-date: "February 23, 2019"
+title: "Craft Beer Market Analysis"
+author: "Team Members: Linda Eliasen and Limin Zheng"
+date: "February 2019"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 # Setting our Echo on output for the presentation to be false
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, messages = FALSE, warning = FALSE)
 ```
 
 
@@ -82,7 +82,7 @@ state<-merge(state, sbystate, by="State",all.x = TRUE)
 colnames(state)<- c('State', 'MedianABV', 'MedianIBU', 'Breweries','BreweriesPerCapita', 'EconomicImpactM$', 'EconomicImpactRank', 'BarrelsPerYear', 'GallonsPerAdult')
 
 kable(state)%>%
-kable_styling(bootstrap_options = "striped", full_width = T)
+kable_styling(bootstrap_options = "striped", "condensed")
 ```
 
 
@@ -107,6 +107,30 @@ hcmap("countries/us/us-all", data = state, value = "Breweries",
 			 			 useHTML = TRUE))
 ```
 
+Heat map number of breweries per capita by state
+```{r mapBrewPC}
+
+mapdata <- get_data_from_map(download_map_data("countries/us/us-all"))
+
+#need to remove extra spaces from state abreviation
+state$State <- str_trim(state$State,side="left")
+state <- state %>% mutate(`hc-a2`= State);
+
+hcmap("countries/us/us-all", data = state, value = "BreweriesPerCapita",
+	  joinBy = "hc-a2", name = "BreweriesPerCapita",
+	  dataLabels = list(enabled = TRUE, format = '{point.name}'),
+	  borderColor = "#FAFAFA", borderWidth = 0.1,
+	  tooltip = list(valueDecimals = 0,valueSuffix = " Breweries")) %>%
+	hc_mapNavigation(enabled = TRUE) %>%
+	hc_title(text = "<b>Breweries Per Capita<b>",
+			 margin = 20, align = "center", 
+			 style = list(color = "#000000", 
+			 			 useHTML = TRUE))
+```
+
+
+
+
 Plot a bar chart to compare Median ABV and IBU by State
 
 
@@ -115,7 +139,6 @@ charts side by side... still work in progress, want to turn into back to back
 #Graph side by side
 abv<-ggplot(state, aes(x=State, y=MedianABV, fill=MedianABV)) + 
   geom_bar(stat="identity") +
-  labs(x="State",y="Median ABV") +
   ggtitle("Median ABV by State") +
   theme(plot.title = element_text(hjust = 0.5))+ 
   theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=4.5))+
@@ -126,7 +149,6 @@ abv<-ggplot(state, aes(x=State, y=MedianABV, fill=MedianABV)) +
 
 ibu<-ggplot(state, aes(x=State, y=MedianIBU, fill=MedianIBU)) + 
   geom_bar(stat="identity") +
-  labs(x="State",y="Median IBU") +
   ggtitle("Median IBU by State") +
   theme(plot.title = element_text(hjust = 0.5))+ 
   theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=4.5))+
@@ -140,7 +162,7 @@ plotf<-plot_grid(abv, ibu, align="hv", nrow = 1, ncol = 2)
 plotf
 ```
 
-
+SUMMARY DATA
 Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
 ```{r max}
 ma <- data.frame(brew[order(-brew$ABV),])
@@ -162,22 +184,20 @@ kable(head(top[,1:4]),
       align = c("l"))  
 ```
 
-Summary statistics for the ABV variable (also adding in IBU)
+Summary statistics for key variables
 ```{r summary}
-Alcohol_by_Volume<-summary(brew$ABV, na.rm=TRUE, digits = 3)
-International_Bitterness_Units<-summary(brew$IBU, na.rm=TRUE)
+Alcohol_by_Volume<-(summary(brew$ABV, na.rm=TRUE, digits=3 ))
 
-Economic_Impact_In_Millions<-summary(state$`EconomicImpactM$`)#, digits=1)
-Annual_Production_Barrels<-summary(state$BarrelsPerYear)#, digits=0)
+International_Bitterness_Units<-(summary(brew$IBU, na.rm=TRUE))
 
-abv<-rbind(Alcohol_by_Volume, International_Bitterness_Units)
+abv<-rbind(Alcohol_by_Volume)
 kable(abv)%>%
+ kable_styling(full_width = F)
+
+ibu<-rbind(International_Bitterness_Units)
+kable(ibu)%>%
   kable_styling(full_width = F)
 
-
-eco<-rbind(Economic_Impact_In_Millions, Annual_Production_Barrels)
-kable(eco)%>%
-  kable_styling(full_width = F)
 ```
 
 Histogram with density plot ABV
@@ -220,6 +240,15 @@ geom_smooth(method=lm, color="black", se=FALSE)
 
 ```
 
+The p-value of the test is less than the significance level alpha = 0.05. We can conclude that ABV and IBU are correlated with a correlation coefficient of 0.67.
+```{r corpear}
+res <- cor.test(brew$IBU, brew$ABV, 
+                    method = "pearson", use = "complete.obs")
+res
+#cor(brew, x=IBU, y=AVB,  method = "pearson", use = "complete.obs")
+```
+
+
 
 Treemap of Beer Styles
 ```{r tmapstyle}
@@ -228,24 +257,25 @@ brew%>%
   arrange(n)%>%
   hchart(type = "treemap", hcaes(x = Style, value = n, color = n))
 ```
-ADDITIONAL CHARTS
 
-Number of different craft beers in each state
-```{r diffbeer}
-btype<-as.data.frame(brew %>% group_by(State)
-        %>% summarise(BeerTypes = n_distinct(Beer)))
+Top 10 Craft Beer Styles
+```{r stlexp}
 
-btype<-btype[order(-btype$BeerTypes),]
-kable(btype)%>%
+bstlexp<-as.data.frame(brew %>% group_by(Style)
+  %>% summarise(Median_ABV=median(ABV, na.rm=TRUE), 
+ Median_IBU=median(IBU, na.rm=TRUE),
+  Beers = n_distinct(Beer)))
+
+bstlexp<-bstlexp[order(-bstlexp$Beers),]
+
+bstlexp=bstlexp[,c(1,4,2,3)]
+
+#kable(bstlexp)%>%
+ # kable_styling(full_width = F)
+
+#Top 10 Styles in the United States
+kable(head(bstlexp,10))%>%
   kable_styling(full_width = F)
-
-ggplot(btype, aes(x=reorder(State, -BeerTypes), y=BeerTypes, fill=BeerTypes)) + 
-  geom_bar(stat="identity") +
-  labs(x="State",y="Number") +
-  ggtitle("Number of Different Craft Beers by State") +
-  theme(plot.title = element_text(hjust = 0.5))+ 
-  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
-  coord_flip()
 
 ```
 
@@ -256,85 +286,130 @@ Number of different beer STYLES in each state
 bstyl<-as.data.frame(brew %>% group_by(State)%>% summarise(BeerStyles=n_distinct(Style)))
 bstyl<-bstyl[order(-bstyl$BeerStyles),]
 
-kable(bstyl)%>%
-  kable_styling(full_width = F)
-
-
-ggplot(bstyl, aes(x=reorder(State, -BeerStyles), y=BeerStyles, fill=BeerStyles)) + 
+bst<-ggplot(bstyl, aes(x=State, y=BeerStyles, fill=BeerStyles)) + 
   geom_bar(stat="identity") +
-  labs(x="State",y="Number") +
-  ggtitle("Number of Different Beer Styles by State") +
-  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  ggtitle("Craft Beer Styles") +
+  theme(plot.title = element_text(hjust = 0.5))+
   theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  theme(legend.position="bottom")+
+  theme(legend.text = element_text(colour="black", size =8))+
+  theme(legend.title = element_blank()) +
   coord_flip()
+
+btype<-as.data.frame(brew %>% group_by(State)
+        %>% summarise(BeerTypes = n_distinct(Beer)))
+
+btp<-ggplot(btype, aes(x=State, y=BeerTypes, fill=BeerTypes)) + 
+  geom_bar(stat="identity") +
+  ggtitle("Craft Beers") +
+  theme(plot.title = element_text(hjust = 0.5))+ 
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  theme(legend.position="bottom")+
+  theme(legend.text = element_text(colour="black", size =8))+
+  theme(legend.title = element_blank()) +
+  coord_flip()
+
+plotb<-plot_grid(bst, btp, align="hv", nrow = 1, ncol = 2) 
+
+plotb
 ```
 
-Median ABV and IBU by Craft Beer Style
-```{r}
-medstyl <-as.data.frame(brew%>% group_by(Style) 
-  %>% summarise(MedianABV=median(ABV, na.rm=TRUE), 
-  MedianIBU=median(IBU, na.rm=TRUE)))
-
-medstyl <- medstyl[-1,]
-
-medstyl<-medstyl[order(-medstyl$MedianABV),]
-
-kable(medstyl)%>%
-  kable_styling(full_width = F)
-```
-
-
-
-Beer and Brand Style by State
-```{r brndstyl}
+Heat map Revenue in Mill$ by state
+```{r revmap}
 BrndStyl <- merge(btype, bstyl, by='State')
-BrndStyl<-BrndStyl[order(-BrndStyl$BeerStyles),]
 
-kable(BrndStyl)%>%
-  kable_styling(full_width = F)
-
-```
-
-
-
-
-
-```{r }
 statesum<-merge(state, BrndStyl, by="State",all.x = TRUE)
 colnames(statesum)<- c('State', 'MedianABV', 'MedianIBU', 'Breweries','BreweriesPerCapita', 'EconomicImpactMil', 'EconomicImpactRank', 'BarrelsPerYear', 'GallonsPerAdult', 'DifferentTypes', 'DifferentStyles')
-
 statesum<-statesum[,c(1,2,3,4,10,11,5,6,7,8,9)]
 
-#kable(statesum)%>%
-#  kable_styling(full_width = F)
+reva<-statesum[order(-statesum$EconomicImpactMil),]
+reva=reva[,c(1,8)]
 
+
+mapdata <- get_data_from_map(download_map_data("countries/us/us-all"))
+
+reva$State <- str_trim(reva$State,side="left")
+rev <- reva %>% mutate(`hc-a2`= State);
+
+
+hcmap("countries/us/us-all", data = rev, value = "EconomicImpactMil",
+	  joinBy = "hc-a2", name = "EconomicImpactMil",
+	  dataLabels = list(enabled = TRUE, format = '{point.name}'),
+	  borderColor = "#FAFAFA", borderWidth = 0.1,
+	  tooltip = list(valueDecimals = 0,valueSuffix = "Economic Impact")) %>%
+	hc_mapNavigation(enabled = TRUE) %>%
+	hc_title(text = "<b>Economic Impact<b>",
+			 margin = 20, align = "center", 
+			 style = list(color = "#000000", 
+			 			 useHTML = TRUE))
+```
+Summary statistics for key variables
+```{r summary2}
+
+Economic_Impact_In_Millions<-summary(state$`EconomicImpactM$`)
+
+Barrels_Produced_Annually<-summary(state$BarrelsPerYear)
+
+eco<-rbind(Economic_Impact_In_Millions)
+kable(eco)%>%
+  kable_styling(full_width = F)
+
+prd<-rbind(Barrels_Produced_Annually)
+kable(prd)%>%
+  kable_styling(full_width = F)
 ```
 
-State Top 10 Rank by Economic Impact
-```{r rank}
-rankei<-statesum[order(-statesum$EconomicImpactRank),]
-rankei=rankei[,c(1,9)]
 
-kable(head(rankei,10))%>%
+Top 10 Revenue by State in M$
+```{r rev}
+
+kable(head(reva,10))%>%
+  kable_styling(full_width = F)
+```
+
+Top 10 States - Barrel Production
+```{r barrels}
+bars<-statesum[order(-statesum$BarrelsPerYear),]
+bars=bars[,c(1,10)]
+
+kable(head(bars,10))%>%
   kable_styling(full_width = F)
 
 ```
+
+
+
+
+APPENDIX
+
+Craft Beer Styles in order of popularity
+```{r stlexp2}
+
+kable(bstlexp)%>%
+kable_styling(full_width = F)
+```
+
 
 Revenue by State in M$
-```{r rev}
-rev<-statesum[order(-statesum$EconomicImpactMil),]
-rev=rev[,c(1,8)]
+```{r revF}
 
-kable(head(rev,10))%>%
-  kable_styling(full_width = F)
-
-ggplot(rev, aes(x=reorder(State, -EconomicImpactMil), y=EconomicImpactMil, fill=EconomicImpactMil)) + 
+ggplot(reva, aes(x=reorder(State, -EconomicImpactMil), y=EconomicImpactMil, fill=EconomicImpactMil)) + 
   geom_bar(stat="identity") +
   labs(x="State",y="Revenue in M$") +
   ggtitle("Craft Beer Revenue M$ by State") +
   theme(plot.title = element_text(hjust = 0.5))+ #forces centering
   theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
   coord_flip()
+
+kable(reva)%>%
+  kable_styling(full_width = F)
+```
+
+
+Beer and Brand Style by State
+```{r brndstyl2}
+kable(BrndStyl)%>%
+  kable_styling(full_width = F)
 
 ```
 
@@ -344,8 +419,6 @@ Gallons Per Adult 21+ by State
 cons<-statesum[order(-statesum$GallonsPerAdult),]
 cons=cons[,c(1,11)]
 
-kable(head(cons,10))%>%
-  kable_styling(full_width = F)
 
 ggplot(cons, aes(x=reorder(State, -GallonsPerAdult), y=GallonsPerAdult, fill=GallonsPerAdult)) + 
   geom_bar(stat="identity") +
@@ -355,11 +428,11 @@ ggplot(cons, aes(x=reorder(State, -GallonsPerAdult), y=GallonsPerAdult, fill=Gal
   theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
   coord_flip()
 
+
+kable(cons)%>%
+  kable_styling(full_width = F)
+
 ```
 
-write.csv(statesum,'statesum.csv')
-
 #####Sources
-*https://www.datacamp.com/community/tutorials/data-visualization-highcharter-r*
-*http://www.sthda.com/english/wiki/ggplot2-density-plot-quick-start-guide-r-software-and-data-visualization*
-*https://rpubs.com/haozhu233/kableExtra_HTML*
+*https://www.highcharts.com/docs/maps/map-collection*
