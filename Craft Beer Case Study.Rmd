@@ -315,7 +315,7 @@ kable(BrndStyl)%>%
 
 
 ```{r }
-statesum<-merge(state, BrndStyl, by="State",all.x = TRUE)
+statesum<-merge(brew.state, BrndStyl, by="State",all.x = TRUE)
 colnames(statesum)<- c('State', 'MedianABV', 'MedianIBU', 'Breweries','BreweriesPerCapita', 'EconomicImpactMil', 'EconomicImpactRank', 'BarrelsPerYear', 'GallonsPerAdult', 'DifferentTypes', 'DifferentStyles')
 
 statesum<-statesum[,c(1,2,3,4,10,11,5,6,7,8,9)]
