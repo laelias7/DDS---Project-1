@@ -210,7 +210,7 @@ ggplot(brew, aes(x=ABV)) +
  	geom_density(alpha=.2, color="blue")+
 	geom_vline(aes(xintercept=mean(brew$ABV, na.rm = T)), color="red",
              linetype="longdash")+
-	labs(title="Alchohol by Volume",x="ABV", y = "Density")+
+	labs(title="Alcohol by Volume",x="ABV", y = "Density")+
 	geom_text(data=brew, mapping=aes(x=mean(brew$ABV, na.rm = T), y=50, label=round(mean(brew$ABV, na.rm = T),digits=4)), size=4, hjust=-0)
 ```
 
@@ -437,7 +437,7 @@ kable(cons)%>%
 ```
 
 Revenue vs. breweries per state
-```{r scatter echo=TRUE}
+```{r scatter2 }
 ggplot(state, aes(Breweries, `EconomicImpactM$`)) +
 geom_point(color="blue") +
 xlim(0,50)+ylim(0,8000)+
@@ -450,7 +450,7 @@ geom_text(aes(label=State),hjust=0, vjust=0, size=3)
 
 
  breweries per capita vs. Gallon per adult in each state
-```{r scatter echo=TRUE}
+```{r scatter3}
 ggplot(state, aes(GallonsPerAdult, BreweriesPerCapita)) +
 geom_point(color="blue") +
 xlim(0,15)+ylim(0,10)+
