@@ -436,6 +436,33 @@ kable(cons)%>%
 
 ```
 
+Revenue vs. breweries per state
+```{r scatter echo=TRUE}
+ggplot(state, aes(Breweries, `EconomicImpactM$`)) +
+geom_point(color="blue") +
+xlim(0,50)+ylim(0,8000)+
+  labs(x="Breweries",y="EconomicImpactM$") +
+ggtitle("EconomicImpactM$ v. Breweries") +
+geom_smooth(method=lm, color="black", se=FALSE) +
+geom_text(aes(label=State),hjust=0, vjust=0, size=3)
+
+```
+
+
+ breweries per capita vs. Gallon per adult in each state
+```{r scatter echo=TRUE}
+ggplot(state, aes(GallonsPerAdult, BreweriesPerCapita)) +
+geom_point(color="blue") +
+xlim(0,15)+ylim(0,10)+
+  labs(x="GallonsPerAdult",y="BreweriesPerCapita") +
+ggtitle("Breweries Per Capita v. Gallons Per Adult") +
+geom_smooth(method=lm, color="black", se=FALSE)+ 
+  geom_text(aes(label=State),hjust=0, vjust=0, size=3)
+
+```
+
+
+
 #####Sources
 *https://www.brewersassociation.org/*
 *https://www.highcharts.com/docs/maps/map-collection*
