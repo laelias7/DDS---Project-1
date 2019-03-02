@@ -26,7 +26,9 @@ library(highcharter)
 library(dataMaid)
 ```
 
-### Data Overview
+### Our team used the data provided by the company for the analysis.  We were also able to obtain additional industry key metrics from The Brewers Association, an American trade group of over 7,200 brewers, which was incorporated into the analysis to provide more depth.
+
+
 ```{r files}
 
 brew<- read.csv("breweries.csv" , header=TRUE, stringsAsFactors=FALSE)
@@ -44,8 +46,7 @@ sbystate$Economic.Impact.Rank<-as.numeric(sbystate$Economic.Impact.Rank)
 sbystate$Barrels.Per.Year<-as.numeric(sbystate$Barrels.Per.Year)
 ```
 
-
-Top and Bottom of Brewery Data Set
+####Below is a quick snapshot (top and bottom) of the data included in the files provided by the company
 
 ```{r head}
 brew <- brew %>% 
@@ -61,15 +62,16 @@ kable(tail(brew,6))%>%
 ```
 
 
-Report the number of NA's in each column.
+#####There are 1005 beers in the data without an IBU rating, and 62 Beers without ABV information.  We are leaving these rows in the data set so we can keep the other key data points for these beers.   
 ```{r missing}
 sha<-colSums(is.na(brew))
 kable(sha)%>%
   kable_styling(full_width = F)
 ```
 
-CRAFT BEER DEMOGRAPHICS BY STATE
-How many breweries are present in each state? Compute the median alcohol content and international bitterness unit for each state, plus adding in other data elements from third file
+###CRAFT BEER DEMOGRAPHICS BY STATE
+
+#####Below is the combined summary of the data, including the additional metrics from The Brewers Association.  That additional data points at the state level include:  Breweries Per Capita, Economic $ Impact, Economic Impact Rank, Barrels Produced Annually and Gallons Produced Per Adult.
 ```{r facts}
 state <-as.data.frame(brew%>% group_by(State) 
   %>% summarise(MedianABV=median(ABV, na.rm=TRUE), 
@@ -85,8 +87,8 @@ kable(state)%>%
 kable_styling(bootstrap_options = "striped", "condensed")
 ```
 
+#####Below is a heat map based on total breweries by state. The top five states with the most breweries are:  Colorado (47), California (39), Michigan (32), Oregon (29) and Texas (28).
 
-Heat map number of breweries by state
 ```{r mapBreweries}
 
 mapdata <- get_data_from_map(download_map_data("countries/us/us-all"))
@@ -107,7 +109,8 @@ hcmap("countries/us/us-all", data = state, value = "Breweries",
 			 			 useHTML = TRUE))
 ```
 
-Heat map number of breweries per capita by state
+#####As each state's population of drinking age adults plays a role in understanding brewery counts, the below map is reflective of breweries per capita (per 100,000 21+ adults).  When looking at the data based on this metric, we see a notable shift in state rankings.  Vermont (11.5), Maine (9.6), Montanna (9.6), Oregon (8.5) and Colorado (8.4) now hold the top five spots.
+
 ```{r mapBrewPC}
 
 mapdata <- get_data_from_map(download_map_data("countries/us/us-all"))
@@ -123,7 +126,7 @@ hcmap("countries/us/us-all", data = state, value = "BreweriesPerCapita",
 	  tooltip = list(valueDecimals = 0,valueSuffix = " Breweries")) %>%
 	hc_mapNavigation(enabled = TRUE) %>%
 	hc_title(text = "<b>Breweries Per Capita<b>",
-			 margin = 20, align = "center", 
+	         	 margin = 20, align = "center", 
 			 style = list(color = "#000000", 
 			 			 useHTML = TRUE))
 ```
@@ -131,12 +134,13 @@ hcmap("countries/us/us-all", data = state, value = "BreweriesPerCapita",
 
 
 
-Plot a bar chart to compare Median ABV and IBU by State
+Combined bar chart to compare Median ABV and IBU by State
 ```{r }
 ggplot(state, aes(x=reorder(State, -MedianABV),y=MedianABV, fill=MedianIBU))+labs(title="Plot of ABV by state", x="State", y="MedianABV", fill="median IBU")+geom_bar(stat="identity") + theme_bw() +theme(axis.text.x=element_text(angle=90, size = 7)) +theme(plot.title = element_text(hjust = 0.5))+theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+coord_flip()
 ```
 
-charts side by side... still work in progress, want to turn into back to back
+#####Like ABV, IBU (International Bitterness Units) is another common measurement for beer. The various graphs below show the median ABV and IBU by state. If we look at median ABV by state, we see that there are not vast differences, with the expected exception of Utah. Median IBU is another story, there are clear differences by state when it comes to the preferred bitterness.
+ 
 ```{r abv_ibu}
 #Graph side by side
 abv<-ggplot(state, aes(x=State, y=MedianABV, fill=MedianABV)) + 
@@ -164,8 +168,7 @@ plotf<-plot_grid(abv, ibu, align="hv", nrow = 1, ncol = 2)
 plotf
 ```
 
-SUMMARY DATA
-Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
+#####Colorado's Lee Hill Series Vol. 5 has the highest ABV at 0.128 and Oregon's Bitter Bitch Imperial IPA has the most bitter beer at an IBU rating of 138.  
 ```{r max}
 ma <- data.frame(brew[order(-brew$ABV),])
 ma=ma[1,c(8,2,4,5)]
@@ -186,7 +189,7 @@ kable(head(top[,1:4]),
       align = c("l"))  
 ```
 
-Summary statistics for key variables
+#####Summary statistics for Alcohol by Volume and International Bitterness Units
 ```{r summary}
 Alcohol_by_Volume<-(summary(brew$ABV, na.rm=TRUE, digits=3 ))
 
@@ -202,7 +205,8 @@ kable(ibu)%>%
 
 ```
 
-Histogram with density plot ABV
+#####The frequency distributions of ABV and IBU show some interesting patterns. The histogram of alcohol by volume is a right skewed distribution and indicates that consumers prefer beers with alcohol content below the mean of .06.  
+
 ```{r abvhist}
 ggplot(brew, aes(x=ABV)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="lightblue", 
@@ -215,7 +219,7 @@ ggplot(brew, aes(x=ABV)) +
 ```
 
 
-Histogram with density plot IBU
+#####International Bitterness Units is a bi-modal (or double peaked) distribution and we can see two distinct preferences: We see a larger group that prefers beers that have an IBU below the mean of 43, and a secondary group that prefer a beer that is more bitter.  For this group we see a concentration range between roughly 60 and 75 IBUs.
 ```{r ibuhist}
 ggplot(brew, aes(x=IBU)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="lightblue", 
@@ -228,9 +232,8 @@ ggplot(brew, aes(x=IBU)) +
 ```
 
 
-#TEST GRAPH FOR REGRESSION
-
-```{r}
+#####When we looked at the correlation between alcohol content and bitterness, we see a positive linear relationship.  The actual correlation between ABV and IBU is 67%.  We also see slightly more clustering towards the lower alcohol content and bitterness units. The relationship between IBU an ABV is statistically significant PValue of <0.0001.
+```{r scatreg}
 ggplotRegression <- function (fit) {
 
 require(ggplot2)
@@ -248,31 +251,7 @@ xlim(0,150)+ylim(0,.150)+
 ggplotRegression(lm(ABV~IBU, data = brew))
 ```
 
-
-
-
-Is there an apparent relationship between the bitterness of the beer and its alcoholic content? 
-```{r scatter}
-ggplot(brew, aes(IBU, ABV)) +
-geom_point(color="blue") +
-xlim(0,150)+ylim(0,.150)+
-  labs(x="IBU",y="ABV") +
-ggtitle("Bitterness v. Alcohol Content") +
-geom_smooth(method=lm, color="black", se=FALSE)
-
-```
-
-The p-value of the test is less than the significance level alpha = 0.05. We can conclude that ABV and IBU are correlated with a correlation coefficient of 0.67.
-```{r corpear}
-res <- cor.test(brew$IBU, brew$ABV, 
-                    method = "pearson", use = "complete.obs")
-res
-#cor(brew, x=IBU, y=AVB,  method = "pearson", use = "complete.obs")
-```
-
-
-
-Treemap of Beer Styles
+#####There are numerous craft styles and beers produced throughout the United States.    As shown by size and shade darkness, the ales tend to be the most preferred style.
 ```{r tmapstyle}
 brew%>%
   count(Style)%>%
@@ -280,7 +259,7 @@ brew%>%
   hchart(type = "treemap", hcaes(x = Style, value = n, color = n))
 ```
 
-Top 10 Craft Beer Styles
+#####Going deeper into the data, this table lists the top 10 craft beer styles and different beers produced in each style.  American IPA's are clearly the front runner with 409 different beers produced.  American Pale Ales take the second spot with 234 beers.
 ```{r stlexp}
 
 bstlexp<-as.data.frame(brew %>% group_by(Style)
@@ -302,7 +281,7 @@ kable(head(bstlexp,10))%>%
 ```
 
 
-Number of different beer STYLES in each state
+#####These charts show by state the number of different styles and beers produced.  When it comes to choice, Colorado, Indiana, California, Michigan, and Texas are the most diverse.
 ```{r style}
 
 bstyl<-as.data.frame(brew %>% group_by(State)%>% summarise(BeerStyles=n_distinct(Style)))
@@ -336,7 +315,8 @@ plotb<-plot_grid(bst, btp, align="hv", nrow = 1, ncol = 2)
 plotb
 ```
 
-Heat map Revenue in Mill$ by state
+#####Craft breweries have a measurable economic impact. When it comes to craft breweries, money is generated back into the economy through wholesale distribution, individual retail sales and sales at breweries. The map below depicts each state's economic impact (in Mil $).
+
 ```{r revmap}
 BrndStyl <- merge(btype, bstyl, by='State')
 
@@ -365,7 +345,8 @@ hcmap("countries/us/us-all", data = rev, value = "EconomicImpactMil",
 			 style = list(color = "#000000", 
 			 			 useHTML = TRUE))
 ```
-Summary statistics for key variables
+
+#####Summary statistics for Economic Impact (Mil$) and Annual Barrel Production
 ```{r summary2}
 
 Economic_Impact_In_Millions<-summary(state$`EconomicImpactM$`)
@@ -382,7 +363,7 @@ kable(prd)%>%
 ```
 
 
-Top 10 Revenue by State in M$
+#####California and Pennsylvania top the nation's list in terms of craft beer's impact on state economies. California comes in at No. 1 with an economic impact of $7.4B and Pennsylvania at No. 2 with $5.8B. Texas is also a significant player at with an economic impact of $4.5B
 ```{r rev}
 
 kable(head(reva,10))%>%
@@ -399,10 +380,26 @@ kable(head(bars,10))%>%
 
 ```
 
+###Recommendations
+
+#####One approach is re-entry into the craft beer market; building a brewery to craft beer specifics.  Based on our analysis, the market is saturated with American IPAs creating an extremely competitive landscape. We recommend initial product development in the American Pale Ale category.  Data suggests that this style is growing in popularity since it continues to evolve.  Brewers are reinventing the classic pale ale by experimenting with local ingredients to craft flavor profiles that push boundaries.  In addition, the IBU and ABV characteristics of this style fall within our identified consumer preference area.
+
+#####In terms of location, our analysis concluded that the western region is highly developed which creates a significant barrier to entry.  The Midwest region is an ideal market.  The key states in the region, Illinois, Michicgan, Minnesota, Ohio and Wisconsin have economic impact ranks in the top 15 and there has been a significant shift of consumer preference to craft beers. The southern region is starting to make inroads into the market, while the Northeast isn't quite there yet.   
+
+#####Our recommendation is to build a craft brewery in Illinois.  There is proximity to the Pacific Northwest for fresh hops, which has the flavor profile consumers prefer.  As we have existing breweries in Ohio and Missouri, we will be able to realize economies of scale with many of the ingredients/equipment.  We will also be able to utilize Missouri's distribution network. 
 
 
 
-APPENDIX
+#####The other option is to acquire an existing brewery in the Western region and expanding the product line into the other regions of the US.
+
+#####One interesting brewery we discovered is the Anderson Valley Brewing Company and Tap Room in California.  Founded in 1987 they have continued to grow their brand from a 10 barrel brewhouse to a 100 barrel brewhouse.  They have a strong portfolio of ales and lagers and they also have an exclusive partnership with Wild Turkey Bourbon which has enabled them to create a secondary market niche.  They have also created a consumer experience which sets them apart by building a golf course on the grounds.
+
+
+
+
+###APPENDIX
+
+#####Other interesting graphs and fulll data for some of the abbreviated data tables in the report
 
 Craft Beer Styles in order of popularity
 ```{r stlexp2}
@@ -485,4 +482,5 @@ geom_smooth(method=lm, color="black", se=FALSE)+
 
 #####Sources
 *https://www.brewersassociation.org/*
+
 *https://www.highcharts.com/docs/maps/map-collection*
