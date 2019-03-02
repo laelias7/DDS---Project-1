@@ -1,0 +1,13 @@
+```{r codebook, include=FALSE replace=TRUE}
+makeDataReport(brew, replace = TRUE)
+makeDataReport(sbystate, replace = TRUE)
+makeDataReport(state, replace = TRUE)
+makeDataReport(mapdata, replace = TRUE)
+makeDataReport(top, replace = TRUE)
+makeDataReport(bstlexp, replace = TRUE)
+makeDataReport(statesum, replace = TRUE)
+makeDataReport(rev, replace = TRUE)
+makeDataReport(BrndStyl, replace = TRUE)
+makeDataReport(cons, replace = TRUE)
+
+```
