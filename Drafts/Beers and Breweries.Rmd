@@ -1,0 +1,221 @@
+---
+title: "Beers & Breweries"
+author: "Linda Eliasen/Limin Zheng"
+date: "February 20, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(ggplot2)
+library(ggpubr)
+library(RColorBrewer)
+library(bindrcpp)
+library(cowplot)
+library(kableExtra)
+```
+
+```{r}
+#BREWERIES Import
+brew<- read.csv("breweries.csv" , header=TRUE)
+```
+
+How many breweries are present in each state?
+```{r}
+bbs <-(brew%>% group_by(State) %>% count(State))
+bbs<-as.data.frame(bbs)
+
+kable(bbs)%>%
+  kable_styling(full_width = F)
+```
+
+Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.
+```{r}
+df<- read.csv("beers.csv" , header=TRUE)
+df <- df[order(df$Beer_ID),]
+```
+
+```{r}
+brew<-merge(brew,df, by.x="Brew_ID", by.y="Brewery_id",all.x = TRUE)
+colnames(brew)<- c('Brewery_id', 'Name', 'City', 'State', 'Beer', 'Beer_ID', 'ABV', 'IBU', 'Style', 'Ounces')
+
+brew$ABV <- as.numeric(brew$ABV)
+brew$IBU <- as.numeric(brew$IBU)
+
+```
+
+```{r}
+#First 6 observations
+kable(head(brew,6))%>%
+  kable_styling()
+
+#Last 6 observations
+kable(tail(brew,6))%>%
+  kable_styling()
+```
+
+Report the number of NA's in each column.
+```{r}
+sha<-colSums(is.na(brew))
+kable(sha)%>%
+  kable_styling(full_width = F)
+```
+
+Compute the median alcohol content and international bitterness unit for each state. 
+```{r}
+beers <-as.data.frame(brew%>% group_by(State) %>% summarise(MedianABV=median(ABV, na.rm=TRUE), 
+  MedianIBU=median(IBU, na.rm=TRUE)))
+
+kable(beers)%>%
+  kable_styling(full_width = F)
+```
+
+Plot a bar chart to compare.
+
+Median Alcohol content
+```{r}
+#Graph ABV
+ggplot(beers, aes(x=reorder(State, -MedianABV), y=MedianABV, fill=MedianABV)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Median ABV") +
+  ggtitle("Median ABV by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+coord_flip() 
+```
+
+Median International Bitterness Level by State
+```{r}
+ #Graph IBU
+ggplot(beers, aes(x=reorder(State, -MedianIBU), y=MedianIBU, fill=MedianIBU)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Median IBU") +
+  ggtitle("Median IBU by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+coord_flip()
+```
+
+```{r}
+#Graph side by side
+abv<-ggplot(beers, aes(x=reorder(State, -MedianABV), y=MedianABV, fill=MedianABV)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Median ABV") +
+  ggtitle("Median ABV by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  coord_flip() 
+
+ibu<-ggplot(beers, aes(x=reorder(State, -MedianIBU), y=MedianIBU, fill=MedianIBU)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Median IBU") +
+  ggtitle("Median IBU by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  coord_flip()
+
+plot_grid(abv, ibu,labels = "AUTO")
+```
+
+
+
+Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
+```{r}
+ma <- data.frame(brew[order(-brew$ABV),])
+ma=ma[1,c(4,5,7,8)]
+ma<-ma[1, ]
+mi <- data.frame(brew[order(-brew$IBU),])
+mi=mi[1,c(4,5,7,8)]
+mi<-mi[1, ]
+top<-rbind(ma, mi)
+top[is.na(top)] <- ""
+
+kable(head(top[,1:4]),
+      format = "pandoc", 
+      digits = 3,        
+      caption = "State with Highest ABV and Most Bitter Beer",
+      col.names = c("State","Beer","ABV","IBV"),
+      row.names = FALSE,
+      align = c("l"))  
+```
+
+Summary statistics for the ABV variable (also adding in IBU)
+```{r}
+AlcoholbyVolume<-summary(brew$ABV, na.rm=TRUE)
+InternationalBitterness<-summary(brew$IBU, na.rm=TRUE)
+avib<-rbind(AlcoholbyVolume, InternationalBitterness)
+
+kable(avib)%>%
+  kable_styling(full_width = F)
+```
+
+
+Is there an apparent relationship between the bitterness of the beer and its alcoholic content? 
+```{r}
+ggplot(brew, aes(IBU, ABV)) +
+geom_point(color="blue") +
+xlim(0,150)+ylim(0,.150)+
+  labs(x="IBU",y="ABV") +
+ggtitle("Bitterness v. Alcohol Content") +
+geom_smooth(method=lm, color="black", se=FALSE) 
+```
+
+
+
+ADDITIONAL CHARTS
+
+Number of different craft beers in each state
+```{r}
+btype<-as.data.frame(brew %>% group_by(State)%>% summarise(BeerTypes = n_distinct(Beer)))
+btype<-btype[order(-btype$BeerTypes),]
+kable(btype)%>%
+  kable_styling(full_width = F)
+
+ggplot(btype, aes(x=reorder(State, -BeerTypes), y=BeerTypes, fill=BeerTypes)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Number") +
+  ggtitle("Number of Different Craft Beers by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  coord_flip()
+
+```
+
+```{r}
+#different beer types/popularity
+bpop<-(brew %>% count(Style) %>% arrange(desc(n)))
+kable(bpop)%>%
+  kable_styling(full_width = F)
+```
+
+
+Number of different beer STYLES in each state
+```{r}
+
+bstyl<-as.data.frame(brew %>% group_by(State)%>% summarise(BeerStyles = n_distinct(Style)))
+bstyl<-bstyl[order(-bstyl$BeerStyles),]
+kable(bstyl)%>%
+  kable_styling(full_width = F)
+
+ggplot(bstyl, aes(x=reorder(State, -BeerStyles), y=BeerStyles, fill=BeerStyles)) + 
+  geom_bar(stat="identity") +
+  labs(x="State",y="Number") +
+  ggtitle("Number of Different Beer Styles by State") +
+  theme(plot.title = element_text(hjust = 0.5))+ #forces centering
+  theme(axis.text.y = element_text(hjust=1, vjust=0.5, size=5))+
+  coord_flip()
+```
+
+
+Beer and Brand Style by State
+```{r}
+BrndStyl <- merge(btype, bstyl, by='State')
+BrndStyl<-BrndStyl[order(-BrndStyl$BeerStyles),]
+kable(BrndStyl)%>%
+  kable_styling(full_width = F)
+
+```
+
