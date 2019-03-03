@@ -13,4 +13,4 @@ Our working repository for the project.
 
 ##YouTube Links:
 ##Linda: https://youtu.be/l6h0L66IF8o
-##Limin: https://www.youtube.com/watch?v=a-df27UrlJ0&t=111s
+##Limin: https://www.youtube.com/watch?v=a-df27UrlJ0&t
