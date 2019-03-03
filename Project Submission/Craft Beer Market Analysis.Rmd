@@ -351,6 +351,34 @@ hcmap("countries/us/us-all", data = rev, value = "EconomicImpactMil",
 			 			 useHTML = TRUE))
 ```
 
+
+#####We found positive corrlation between Economic Impact Million$ vs. Breweries per State. One interesting state, Pennsylvania, has a very high Economic Impact in Million $, but not that high number of breweries in this state. 
+```{r scatter2 }
+#Revenue vs. breweries per state
+ggplot(state, aes(Breweries, `EconomicImpactM$`)) +
+geom_point(color="blue") +
+xlim(0,50)+ylim(0,8000)+
+  labs(x="Breweries",y="EconomicImpactM$") +
+ggtitle("EconomicImpactM$ v. Breweries") +
+geom_smooth(method=lm, color="black", se=FALSE) +
+geom_text(aes(label=State),hjust=0, vjust=0, size=3)
+
+```
+
+#####There is a also a positive correlation between Breweries per Capita vs. Gallon per Adult in each state. Pennsylvania has a high value of Gallons per Adult, but the Breweries per Capita is relatively low. This means the revenue income of beer industry is high, less competitors, people tend to drink more in this state. 
+```{r scatter3}
+#breweries per capita vs. Gallon per adult in each state
+ggplot(state, aes(GallonsPerAdult, BreweriesPerCapita)) +
+geom_point(color="blue") +
+xlim(0,15)+ylim(0,10)+
+  labs(x="GallonsPerAdult",y="BreweriesPerCapita") +
+ggtitle("Breweries Per Capita v. Gallons Per Adult") +
+geom_smooth(method=lm, color="black", se=FALSE)+ 
+  geom_text(aes(label=State),hjust=0, vjust=0, size=3)
+
+```
+
+
 #####Summary statistics for Economic Impact (Mil$) and Annual Barrel Production
 ```{r summary2}
 
@@ -399,6 +427,7 @@ kable(head(bars,10))%>%
 
 #####One interesting brewery we discovered is the Anderson Valley Brewing Company and Tap Room in California.  Founded in 1987 they have continued to grow their brand from a 10 barrel brewhouse to a 100 barrel brewhouse.  They have a strong portfolio of ales and lagers and they also have an exclusive partnership with Wild Turkey Bourbon which has enabled them to create a secondary market niche.  They have also created a consumer experience which sets them apart by building a golf course on the grounds.
 
+#####We can do more analysis to specific state, like Pennsylvania, it has a high economic revenue of beer industry, less competitors,but people tend to drink more in this state. This can be a good business opportunity.
 
 
 
