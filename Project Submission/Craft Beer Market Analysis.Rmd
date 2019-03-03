@@ -6,6 +6,7 @@ output: html_document
 ---
 
 Github:           *https://github.com/laelias7/DDS---Project-1.git*
+
 YouTube - Linda:  *https://youtu.be/l6h0L66IF8o*
 
 
@@ -488,7 +489,7 @@ kable(cons)%>%
 ```
 
 Revenue vs. breweries per state
-```{r scatter2 }
+```{r scatter2A }
 ggplot(state, aes(Breweries, `EconomicImpactM$`)) +
 geom_point(color="blue") +
 xlim(0,50)+ylim(0,8000)+
@@ -501,7 +502,7 @@ geom_text(aes(label=State),hjust=0, vjust=0, size=3)
 
 
  breweries per capita vs. Gallon per adult in each state
-```{r scatter3}
+```{r scatter5}
 ggplot(state, aes(GallonsPerAdult, BreweriesPerCapita)) +
 geom_point(color="blue") +
 xlim(0,15)+ylim(0,10)+
