@@ -417,10 +417,15 @@ kable(head(bars,10))%>%
 #####Our recommendation is to build a craft brewery in Illinois.  There is proximity to the Pacific Northwest for fresh hops, which has the flavor profile consumers prefer.  As we have existing breweries in Ohio and Missouri, we will be able to realize economies of scale with many of the ingredients/equipment.  We will also be able to utilize Missouri's distribution network. 
 
 
-
 #####The other option is to acquire an existing brewery in the Western region and expanding the product line into the other regions of the US.
 
 #####One interesting brewery we discovered is the Anderson Valley Brewing Company and Tap Room in California.  Founded in 1987 they have continued to grow their brand from a 10 barrel brewhouse to a 100 barrel brewhouse.  They have a strong portfolio of ales and lagers and they also have an exclusive partnership with Wild Turkey Bourbon which has enabled them to create a secondary market niche.  They have also created a consumer experience which sets them apart by building a golf course on the grounds.
+
+
+#####We can do more analysis to specific state, like Pennsylvania, it has a high economic revenue of beer industry, less competitors,but people tend to drink more in this state. This can be a good business opportunity.
+
+#####We can do more analysis between styles of beers and revenue income in each state. Which could help us identify the popular beer style and possible correlation between them.
+
 
 
 
