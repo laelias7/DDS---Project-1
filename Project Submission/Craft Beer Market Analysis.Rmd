@@ -9,6 +9,7 @@ Github:           *https://github.com/laelias7/DDS---Project-1.git*
 
 YouTube - Linda:  *https://youtu.be/l6h0L66IF8o*
 
+YouTube - Limin:  *https://www.youtube.com/watch?v=a-df27UrlJ0&t=111s*
 
 
 ```{r setup, include=FALSE}
