@@ -10,3 +10,7 @@ Our working repository for the project.
 5.	Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
 6.	Summary statistics for the ABV variable.
 7.	Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.
+
+##YouTube Links:
+Linda: https://youtu.be/l6h0L66IF8o
+Limin: https://www.youtube.com/watch?v=a-df27UrlJ0&t=111s
