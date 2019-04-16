@@ -1,0 +1,839 @@
+---
+title: "DDS Case Study 2"
+author: "Linda Eliasen"
+date: "April 14, 2019"
+output: html_document
+---
+*Personal SMU Repository: <https://github.com/laelias7/SMU-MSDS.git>*      
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, tidy=TRUE)
+```
+
+
+```{r libraries, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(dplyr)
+library(magrittr)  # %>% and %<>% operators.
+library(ggplot2)
+library(kableExtra)
+library(pROC)
+library(ggcorrplot)
+library(corrplot)
+library(fastDummies)
+library(alluvial)
+library(caret)
+library(randomForest)
+library(RColorBrewer)
+library(rpart)
+library(class)
+library(MASS)
+library(knitr)
+library(forecast)
+library(car)
+```
+
+Engineered Fields
+Age Cat: Grouping of EEs by Age Category. <25, 25-30, 30-35, 35-40, 40-45, 45-50, 50+
+Educ_Field:  Combined Field:  Education + Education Field
+EE Satisfaction:  Avg of satisfaction scores per employee (Environment, Job Involvement, Job, Relationship, Work Life Balance)
+Other Company Experience:  Yes / No Classifier. Yes if Number Companies Worked -1 >0
+Prior Experience Years: Total Working Years - Years at Company
+Service Cat: Grouping of EEs by Company length of service 0-1, 1-3, 3-5, 5-8, 8-10, 10+
+Promo Last 3:  Yes/No Classifier if employee was promoted within the last 3 years
+
+
+Trimming the data
+The following variables were removed from the datasets as they were either identifiers, non-unique across observations, the same as other variables (expressed differently), or included in the engineered variables.
+ID, Over18, Standard Hours, Employee Count, Employee Number, Rand
+Monthly Rate, Daily Rate, Hourly Rate
+Age, Education, Education Field, Environment Satisfaction, Job Involvement, Job Satisfaction, Relationship Satisfaction, Work Life Balance
+TBDNum Companies Worked, Total Working Years, Years at Company, TBDYears Since Last Promotion
+
+```{r}
+fp <- read.csv("CS2_data_comb.csv", header=T,na.strings=c(""))
+
+fp = fp[ , !(names(fp) %in% c('ID','Over18', 'StandardHours', 'EmployeeCount',  'EmployeeNumber','Rand',
+                              'MonthlyRate', 'DailyRate', 'HourlyRate',
+                              'Age', #'Education', #'EducationField', 
+                              'EnvironmentSatisfaction','JobInvolvement', 'JobSatisfaction', 
+                              'RelationshipSatisfaction', 'WorkLifeBalance',
+                              'TotalWorkingYears','YearsAtCompany'))]
+eda=fp
+attach(eda)
+```
+
+#Of the data provided, 16% left the organization for various reasons.  
+#Our analysis is focused on u nderstanding the underlying causes and
+
+```{r}
+prop_eda <- eda %>% dplyr::select(Attrition) %>% group_by(Attrition) %>% summarize(n=n()) %>%
+  mutate(pct=round(prop.table(n), 2))
+
+kable(prop_eda)%>%
+  kable_styling(full_width = F)
+```
+
+#Let's get a feel for where differences exist in terms of Percentage Attrition
+
+#Attrition by Exemption Status - Non Exempt Employees are leaving at a higher rate than Exempt employees
+
+```{r}
+#Attrition by Exemption Status 
+par(mfrow=c(2,2))
+cross<-table(Attrition, OverTime)
+barplot(prop.table(cross,2)*100,
+        xlab="Overtime Eligible = 1", ylab="Percentage", main="% Attrition by Exemption",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, Department)
+barplot(prop.table(cross,2)*100,
+        xlab="Department", ylab="Percentage", main="% Attrition by Department",
+        beside=T, cex.names=0.5, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, MaritalStatus)
+barplot(prop.table(cross,2)*100,
+        xlab="Marital Status", ylab="Percentage", main="% Attrition by Marital Status",
+        beside=T, col=c ("palevioletred3", "skyblue4"),
+        legend=rownames(cross), args.legend = list (x="topright"))
+
+```
+
+#ALLUVIAL - ATTRITION, OVERTIME, DEPARTMENT, MARTIAL STATUS
+```{r}
+#https://www.kaggle.com/hiteshp/head-start-for-data-scientist/log
+#https://cran.r-project.org/web/packages/alluvial/vignettes/alluvial.html
+
+#ALLUVIAL - ATTRITION, OVERTIME, DEPARTMENT, MARTIAL STATUS
+par(mfrow=c(1,1))
+tbl_summary <- eda %>%
+  group_by(Attrition, OverTime, Department, MaritalStatus) %>%
+  summarise(N = n()) %>% 
+  ungroup 
+
+alluvial(tbl_summary[, c(1:4)],
+         freq=tbl_summary$N, border=NA,
+         col=ifelse(tbl_summary$Attrition == "Yes", "blue", "gray"),
+         cex=0.65,
+         ordering = list(
+           order(tbl_summary$Attrition, tbl_summary$Department=="Sales"),
+           order(tbl_summary$OverTime, tbl_summary$Department=="Sales"),
+           NULL, NULL))
+
+```
+
+#Attrition by Age Category  / Job Level / Job Role Disproportionally losing more younger employees
+```{r}
+par(mfrow=c(1,2))
+cross<-table(Attrition, AgeCat)
+barplot(prop.table(cross,2)*100,
+        xlab="Age Category", ylab="Percentage", main="% Attrition by Age category",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, JobLevel)
+barplot(prop.table(cross,2)*100,
+        xlab="Job Level", ylab="Percentage", main="% Attrition by Job Level",
+        beside=T, cex.names=0.5, col=c ("palevioletred3", "skyblue4"))
+
+par(mfrow=c(1,1))
+cross<-table(Attrition, JobRole)
+barplot(prop.table(cross,2)*100,
+        xlab="Job Role",ylab="Percentage",main="% Attrition by Job Role",
+        beside=T,
+        cex.names=0.3,
+        col=c ("palevioletred3", "skyblue4"))
+```
+
+#ALLUVIAL - ATTRITION, JOB LEVEL, AGE CAT, JOB ROLE
+```{r}
+tbl_summary <- eda %>%
+  group_by(Attrition, JobLevel, AgeCat, JobRole) %>%
+  summarise(N = n()) %>% 
+  ungroup 
+
+alluvial(tbl_summary[, c(1:4)],
+         freq=tbl_summary$N, border=NA,
+         col=ifelse(tbl_summary$Attrition == "Yes", "blue", "gray"),
+         cex=0.65,
+         ordering = list(
+           order(tbl_summary$Attrition, tbl_summary$AgeCat=="<25"),
+           order(tbl_summary$JobLevel, tbl_summary$AgeCat=="<25"),
+           NULL, NULL))
+```
+
+```{r}
+par(mfrow=c(2,1))
+ServiceCat <- factor(ServiceCat, levels=c("0-1", "1-3","3-5","5-8", "8-10","10+" ))
+cross<-table(Attrition, ServiceCat)
+barplot(prop.table(cross,2)*100,
+        xlab="Service Category", ylab="Percentage", main="% Attrition by Co Service Category",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, EducationField)
+barplot(prop.table(cross,2)*100,
+        xlab="Education Field", ylab="Percentage", main="% Attrition by Education Field",
+        beside=T, cex.names=0.5, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, BusinessTravel)
+barplot(prop.table(cross,2)*100,
+        xlab="Monthly Business Travel", ylab="Percentage", main="% Attrition by Amount of Monthly BusinessTravel",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, StockOptionLevel)
+barplot(prop.table(cross,2)*100,
+        xlab="Stock Option Level", ylab="Percentage", main="% Attrition by Stock Option Level",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+```
+
+
+#NO DISCERNABLE DIFFERENCE
+```{r}
+
+par(mfrow=c(1,3))
+cross<-table(Attrition, Gender)
+barplot(prop.table(cross,2)*100,
+        xlab="Gender", ylab="Percentage", main="% Attrition by Gender",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, OtherCoExp)
+barplot(prop.table(cross,2)*100,
+        xlab="Other Company Experience", ylab="Percentage", main="% Attrition by Other Company Experience",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+cross<-table(Attrition, PerformanceRating)
+barplot(prop.table(cross,2)*100,
+        xlab="Performance Rating", ylab="Percentage", main="% Attrition by Performance Rating",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+
+```
+
+
+```{r}
+par(mfrow=c(1,1))
+cross<-table(Attrition, Education)
+barplot(prop.table(cross,2)*100,
+        xlab="Education Level", ylab="Percentage", main="% Attrition by Education Level",
+        beside=T, col=c ("palevioletred3", "skyblue4"))
+```
+
+
+#ALLUVIAL - ATTRITION, SERVICECAT, DEPARTMENT, JOBROLE
+```{r}
+tbl_summary <- eda %>%
+  group_by(Attrition, ServiceCat, Department, JobRole) %>%
+  summarise(N = n()) %>% 
+  ungroup 
+
+alluvial(tbl_summary[, c(1:4)],
+         freq=tbl_summary$N, border=NA,
+         col=ifelse(tbl_summary$Attrition == "Yes", "blue", "gray"),
+         cex=0.65,
+         ordering = list(
+           order(tbl_summary$Attrition, tbl_summary$Department=="Sales"),
+           order(tbl_summary$ServiceCat, tbl_summary$Department=="Sales"),
+           NULL,NULL))
+```
+
+#EMPLOYEE SATISFACTION SCORES
+
+#Attrition by Dept with satisfaction rating
+```{r}
+
+
+comb.los <- eda %>% dplyr::select(EESatisfaction, ServiceCat, Attrition) %>% 
+  group_by(ServiceCat, Attrition) %>%
+  summarize(avg.env=mean(EESatisfaction))
+
+grf.los<-ggplot(comb.los, aes(x=ServiceCat, y=avg.env)) + 
+  geom_line(aes(group=Attrition), color="grey3", linetype="dashed") + 
+  geom_point(aes(color=Attrition), size=3) +  
+  theme(plot.title=element_text(hjust=0.5), axis.text.x=element_text(angle = 75, hjust = 1)) +
+  labs(title="Working Environment", y="Average Employee Satisfaction", x="Service Category") + 
+  scale_color_manual(values=c("palevioletred3", "skyblue4"))
+grf.los
+```
+
+#Attrition by Job Role with satisfaction rating
+```{r}
+
+comb.jobrole <- eda %>% dplyr::select(EESatisfaction, JobRole, Attrition) %>% 
+  group_by(JobRole, Attrition) %>%
+  summarize(avg.env=mean(EESatisfaction))
+
+grf.JobRole<-ggplot(comb.jobrole, aes(x=JobRole, y=avg.env)) + 
+  geom_line(aes(group=Attrition), color="grey3", linetype="dashed") + 
+  geom_point(aes(color=Attrition), size=3) +  
+  theme(plot.title=element_text(hjust=0.5), axis.text.x=element_text(angle = 75, hjust = 1)) +
+  labs(title="Working Environment", y="Average Employee Satisfaction", x="Job Role") + 
+  scale_color_manual(values=c("palevioletred3", "skyblue4"))
+grf.JobRole
+```
+
+#Attrition by Age category with satisfaction rating
+```{r}
+
+comb.AgeCat <- eda %>% dplyr::select(EESatisfaction, AgeCat, Attrition) %>% 
+  group_by(AgeCat, Attrition) %>%
+  summarize(avg.env=mean(EESatisfaction))
+
+grf.AgeCat<-ggplot(comb.AgeCat, aes(x=AgeCat, y=avg.env)) + 
+  geom_line(aes(group=Attrition), color="grey3", linetype="dashed") + 
+  geom_point(aes(color=Attrition), size=3) +  
+  theme(plot.title=element_text(hjust=0.5), axis.text.x=element_text(angle = 50, hjust = 1)) +
+  labs(title="Working Environment", y="Average Employee Satisfaction", x="Age Category") + 
+  scale_color_manual(values=c("palevioletred3", "skyblue4"))
+grf.AgeCat
+
+
+```
+
+```{r}
+detach(eda)
+
+#Remove individual fields that make up combined Educ_Field (were needed for graphing)
+fp = fp[ , !(names(fp) %in% c('Education', 'EducationField'))]
+```
+
+#CORRELATION MATRIX
+
+Job Level + Monthly Income has a correlation of 1
+Years in Current role + Years with Current Manager = 0.7
+Years since last promotion + Years in Current Role = 0.8
+Will leave in for now and revisit during classification / modeling
+```{r}
+nums <- select_if(fp, is.numeric)
+corr <- round(cor(nums), 1)
+ggcorrplot(corr, 
+           type = "lower", 
+           lab = TRUE, 
+           lab_size = 2, 
+           method="square", 
+           colors = c("tomato2", "white", "#01A9DB"), 
+           title="Correlation Matrix", 
+           ggtheme=theme_minimal())
+```
+
+#Identify top three variables contributing to Turnover
+```{r}
+#fp$StockOptionLevel <- factor(fp$StockOptionLevel)
+#fp$OverTime <- factor(fp$OverTime)
+#fp$OtherCoExp <- factor(fp$OtherCoExp)
+#fp$PromoLast3 <- factor(fp$PromoLast3)
+
+fp2=fp
+fp2$StockOptionLevel <- factor(fp2$StockOptionLevel)
+fp2$OverTime <- factor(fp2$OverTime)
+fp2$OtherCoExp <- factor(fp2$OtherCoExp)
+fp2$PromoLast3 <- factor(fp2$PromoLast3)
+```
+
+```{r}
+#randomforest method
+set.seed(112)
+# Random Forest relative importance of variables as predictors
+rffit <- randomForest(Attrition ~.,data=fp2, ntree=2000, keep.forest=FALSE, importance=TRUE)
+
+feat_imp_df <- importance(rffit) %>% 
+  data.frame() %>% 
+  mutate(feature = row.names(.)) 
+
+# plot dataframe
+ggplot(feat_imp_df, aes(x = reorder(feature, MeanDecreaseGini), 
+                        y = MeanDecreaseGini)) +
+  geom_bar(stat='identity', fill = 'steelblue')+
+  coord_flip() +
+  theme_classic() +
+  scale_fill_brewer(palette="Set3")+
+  labs(x= "Feature", y = "Importance",title = "Feature Importance")
+  
+```
+
+#Classification/Predcition
+
+#KNN
+```{r}
+fpD <- fastDummies::dummy_cols(fp2, remove_first_dummy = TRUE) 
+# Deleting the columns for which dummies are created
+fpD = subset(fpD, select = -c(Attrition, AgeCat, Educ_Field, BusinessTravel, 
+                                JobRole, Department, StockOptionLevel, OverTime, Gender, 
+                                MaritalStatus, OtherCoExp, ServiceCat, PromoLast3))
+
+fpD<-fpD[c(13, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73)]
+
+fpD$Attrition_Yes = as.factor(fpD$Attrition_Yes)
+
+```
+
+#Create Training and Test File and check proportions
+```{r}
+
+set.seed(111)
+data_part<-createDataPartition(fpD$Attrition_Yes,p=0.7,list=FALSE,times=1)
+train.K<-fpD[data_part,]
+test.K<-fpD[-data_part,]   
+
+prop_fpD <- fpD %>% dplyr::select(Attrition_Yes) %>% group_by(Attrition_Yes) %>% summarize(n=n()) %>%
+  mutate(pct=round(prop.table(n), 2))
+
+prop_train.K <- train.K %>% dplyr::select(Attrition_Yes) %>% group_by(Attrition_Yes) %>% summarize(n=n()) %>%
+  mutate(pct=round(prop.table(n), 2))
+
+prop_test.K <- test.K %>% dplyr::select(Attrition_Yes) %>% group_by(Attrition_Yes) %>% summarize(n=n()) %>%
+  mutate(pct=round(prop.table(n), 2))
+
+prop_fpD
+prop_train.K
+prop_test.K
+
+```
+
+
+```{r}
+results=class::knn(train.K[,c(2:73)],test.K[,c(2:73)],train.K$Attrition_Yes,k=3)
+test.K$Attrition_YesPred=results
+confusionMatrix(table(test.K$Attrition_Yes,test.K$Attrition_YesPred))
+```
+
+```{r}
+#To compare when data is normalized
+#Training and train control
+#https://topepo.github.io/caret/pre-processing.html
+
+trainX <- train.K[,names(train.K) != "Attrition_Yes"]
+preProcValues <- preProcess(x = trainX,method = c("center", "scale"))
+preProcValues
+```
+
+```{r}
+set.seed(111)
+ctrl <- trainControl(method="cv",repeats = 3) 
+knnFit <- train(Attrition_Yes ~ ., data = train.K, method = "knn", trControl = ctrl, preProcess = c("center","scale"), tuneLength = 20)
+knnFit
+plot(knnFit)
+```
+
+
+#Near Zero variance warnings, need to check
+```{r}
+
+nzv <- nearZeroVar(fpD, saveMetrics= TRUE)
+nzv[nzv$nzv,][2:73,]
+```
+
+
+
+####Remove near zero variance variables
+```{r}
+filteredfpD = fpD[ , !(names(fpD) %in% c('Educ_Field_1_Technical Degree', 'Educ_Field_5_Medical', 
+                                        'Educ_Field_4_Technical Degree', 'Educ_Field_3_Other', 
+                                        'Educ_Field_2_Marketing', 'Educ_Field_1_Marketing', 
+                                        'Educ_Field_4_Other', 'Educ_Field_3_Marketing', 
+                                        'Educ_Field_3_Technical Degree', 'Educ_Field_5_Marketing', 
+'Educ_Field_2_Technical Degree', 'Educ_Field_2_Other', 'Educ_Field_1_Life Sciences', 'Educ_Field_1_Medical',
+'Educ_Field_4_Human Resources', 'Educ_Field_3_Human Resources', 'Educ_Field_5_Life Sciences', 
+'Educ_Field_5_Human Resources', 'Educ_Field_1_Other', 'Educ_Field_5_Technical Degree', 'Educ_Field_1_Human Resources',
+'Educ_Field_2_Human Resources', 'JobRole_Human Resources', 'Department_Human Resources', 'ServiceCat_0-1'))]
+
+filteredfpD$Attrition_Yes = as.factor(filteredfpD$Attrition_Yes)
+```
+
+
+```{r}
+
+set.seed(111)
+data_part<-createDataPartition(filteredfpD$Attrition_Yes,p=0.7,list=FALSE,times=1)
+train.KF<-filteredfpD[data_part,]
+test.KF<-filteredfpD[-data_part,]  
+```
+
+#Training and train control
+```{r}
+ctrl2 <- trainControl(method="cv") #,classProbs=TRUE,summaryFunction = twoClassSummary)
+knnFit2 <- train(Attrition_Yes ~ ., data = train.KF, method = "knn", trControl = ctrl2, preProcess = c("center","scale"), tuneLength = 20)
+
+knnFit2
+
+plot(knnFit2)
+```
+
+```{r}
+knnPredict2 <- predict(knnFit2,newdata = test.KF)
+
+confusionMatrix(knnPredict2, test.KF$Attrition_Yes)
+```
+
+#LOGISTIC CLASSIFICATION
+
+As we discoverd during correlation check
+Job Level + Monthly Income has a correlation of 1. Model was run with both, and either or - -best result with removing Job Level
+Years in Current role + Years with Current Manager = 0.7.  Model was run with both, and either or - -best result with Years with Current Manager
+```{r}
+fpL = fp2[ , !(names(fp) %in% c('JobLevel','YearsWithCurrManager'))]
+```
+
+Create training and test database
+```{r}
+set.seed(112) #caret
+data_part<-createDataPartition(fpL$Attrition,p=0.7,list=FALSE,times=1)
+trainL<-fpL[data_part,]
+testL<-fpL[-data_part,]  
+```
+
+
+#FULL MODEL incorporating all predictors:
+```{r}
+#https://stats.idre.ucla.edu/r/dae/logit-regression/
+#http://www.sthda.com/english/articles/36-classification-methods-essentials/150-stepwise-logistic-regression-essentials-in-r/
+
+
+# Fit the model
+full.model <- glm(Attrition ~., data = trainL, family = binomial)
+
+# Make predictions
+probabilities <- full.model %>% predict(testL, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "Yes", "No")
+predicted.classes <- factor(predicted.classes)
+
+# Model accuracy
+observed.classes <- testL$Attrition
+mean(predicted.classes == observed.classes)
+caret::confusionMatrix(predicted.classes,testL$Attrition)   
+
+```
+
+
+#DEFAULT STEP (BACKWARDS)
+```{r}
+# Fit the model
+back.model <- full.model %>% stepAIC(trace = FALSE) #default=backward
+
+# Make predictions
+probabilitiesb<- predict(back.model, testL, type = "response")
+predicted.classesb <- ifelse(probabilitiesb > 0.5, "Yes", "No")
+predicted.classesb <- factor(predicted.classesb)
+
+# Prediction accuracy
+observed.classesb <- testL$Attrition
+mean(predicted.classesb == observed.classesb)
+caret::confusionMatrix(predicted.classesb,testL$Attrition)
+
+```
+
+#STEPWISE
+```{r}
+#Fit the model
+step.model <- full.model %>% stepAIC(direction = "both", trace = FALSE)
+
+# Make predictions
+probabilitiesS<- predict(step.model, testL, type = "response")
+predicted.classesS <- ifelse(probabilitiesS > 0.5, "Yes", "No")
+predicted.classesS <- factor(predicted.classesS)
+
+# Prediction accuracy
+observed.classesS <- testL$Attrition
+mean(predicted.classesS == observed.classesS)
+caret::confusionMatrix(predicted.classesS,testL$Attrition)
+
+```
+
+#FORWARD
+```{r}
+#Fit the model
+forw.model <- full.model %>% stepAIC(direction = "forward", trace = FALSE)
+
+# Make predictions
+probabilitiesf<- predict(forw.model, testL, type = "response")
+predicted.classesf <- ifelse(probabilitiesf > 0.5, "Yes", "No")
+predicted.classesf <- factor(predicted.classesf)
+
+# Prediction accuracy
+observed.classesf <- testL$Attrition
+mean(predicted.classesf == observed.classesf)
+caret::confusionMatrix(predicted.classesf,testL$Attrition)
+
+```
+
+#RANDOM FOREST
+
+Training and test files
+```{r}
+rf=fp
+rf$StockOptionLevel <- factor(rf$StockOptionLevel)
+rf$OverTime <- factor(rf$OverTime)
+rf$OtherCoExp <- factor(rf$OtherCoExp)
+rf$PromoLast3 <- factor(rf$PromoLast3)
+
+set.seed(112) #caret
+data_part<-createDataPartition(rf$Attrition,p=0.7,list=FALSE,times=1)
+trainRF<-rf[data_part,]
+testRF<-rf[-data_part,] 
+```
+
+
+```{r}
+#Building the model
+modelRF <- randomForest(Attrition~.,trainRF, importance=TRUE,ntree=1000)
+
+#Predict to test data
+predRF <- predict(modelRF, newdata = testRF)
+confusionMatrix(testRF$Attrition, predRF)
+```
+
+```{r}
+plotRF<- plot.roc(as.numeric(testRF$Attrition), 
+                       as.numeric(predRF),lwd=2, type="b",print.auc=TRUE,col ="blue")
+```
+
+As seen in the confusion matrices, Random Forest had the best accuracy and sensitivity, both >60
+
+#PREDICT ATTRITION WITH RANDOM FOREST
+```{r}
+ap<-read.csv("CS2_Validation_Comb.csv", header=T,na.strings=c(""))
+
+ap = ap[ , !(names(ap) %in% c('File', 'Attrition', 'Over18', 'StandardHours', 'EmployeeCount',  'EmployeeNumber','Rand',
+                              'MonthlyRate', 'DailyRate', 'HourlyRate',
+                              'Age', 'Education', 'EducationField', 
+                              'EnvironmentSatisfaction','JobInvolvement', 'JobSatisfaction', 
+                              'RelationshipSatisfaction', 'WorkLifeBalance',
+                              'TotalWorkingYears','YearsAtCompany'))]
+
+ap$Attrition<-""
+trainRF$ID<-""
+```
+
+#Solution to "New factor levels not present in the training data"
+#https://stackoverflow.com/questions/17059432/random-forest-package-in-r-shows-error-during-prediction-if-there-are-new-fact
+```{r}
+#convert factors to character in both training set and prediction set
+ap$ID <- as.character(ap$ID)
+ap$AgeCat <- as.character(ap$AgeCat)
+ap$Educ_Field <- as.character(ap$Educ_Field)
+ap$BusinessTravel <- as.character(ap$BusinessTravel)
+ap$JobRole <- as.character(ap$JobRole)
+ap$JobLevel <- as.character(ap$JobLevel)
+ap$Department <- as.character(ap$Department)
+ap$StockOptionLevel  <- as.character(ap$StockOptionLevel)
+ap$OverTime <- as.character(ap$OverTime)
+ap$Gender <- as.character(ap$Gender)
+ap$MaritalStatus <- as.character(ap$MaritalStatus)
+ap$OtherCoExp <- as.character(ap$OtherCoExp)
+ap$ServiceCat <- as.character(ap$ServiceCat)
+ap$PromoLast3 <- as.character(ap$PromoLast3)
+ap$PerformanceRating <- as.character(ap$PerformanceRating)
+
+trainRF$Attrition <- as.character(trainRF$Attrition)
+trainRF$AgeCat <- as.character(trainRF$AgeCat)
+trainRF$Educ_Field <- as.character(trainRF$Educ_Field)
+trainRF$BusinessTravel <- as.character(trainRF$BusinessTravel)
+trainRF$JobRole <- as.character(trainRF$JobRole)
+trainRF$JobLevel <- as.character(trainRF$JobLevel)
+trainRF$Department <- as.character(trainRF$Department)
+trainRF$StockOptionLevel  <- as.character(trainRF$StockOptionLevel)
+trainRF$OverTime <- as.character(trainRF$OverTime)
+trainRF$Gender <- as.character(trainRF$Gender)
+trainRF$MaritalStatus <- as.character(trainRF$MaritalStatus)
+trainRF$OtherCoExp <- as.character(trainRF$OtherCoExp)
+trainRF$ServiceCat <- as.character(trainRF$ServiceCat)
+trainRF$PromoLast3 <- as.character(trainRF$PromoLast3)
+trainRF$PerformanceRating <- as.character(trainRF$PerformanceRating)
+
+
+#add testing file flag to both files
+ap$isTest <- rep(1,nrow(ap))
+trainRF$isTest <- rep(0,nrow(trainRF))
+
+#combine files
+fullSet <- rbind(ap,trainRF)
+
+#convert characters back to factors
+fullSet$Attrition <- as.factor(fullSet$Attrition)
+fullSet$AgeCat <- as.factor(fullSet$AgeCat)
+fullSet$Educ_Field <- as.factor(fullSet$Educ_Field)
+fullSet$BusinessTravel <- as.factor(fullSet$BusinessTravel)
+fullSet$JobRole <- as.factor(fullSet$JobRole)
+fullSet$JobLevel <- as.factor(fullSet$JobLevel)
+fullSet$Department <- as.factor(fullSet$Department)
+fullSet$StockOptionLevel  <- as.factor(fullSet$StockOptionLevel)
+fullSet$OverTime <- as.factor(fullSet$OverTime)
+fullSet$Gender <- as.factor(fullSet$Gender)
+fullSet$MaritalStatus <- as.factor(fullSet$MaritalStatus)
+fullSet$OtherCoExp <- as.factor(fullSet$OtherCoExp)
+fullSet$ServiceCat <- as.factor(fullSet$ServiceCat)
+fullSet$PromoLast3 <- as.factor(fullSet$PromoLast3)
+fullSet$PerformanceRating <- as.factor(fullSet$PerformanceRating)
+
+#split files back apart/clean up
+test.new <- fullSet[fullSet$isTest==1,]
+train.new <- fullSet[fullSet$isTest==0,]
+
+test.new= test.new[ , !(names(ap) %in% c('isTest'))]
+train.new = train.new [ , !(names(ap) %in% c('isTest','ID'))]
+
+train.new$Attrition <- factor(train.new$Attrition)
+```
+
+
+```{r}
+#Building the model
+modelRF2 <- randomForest(Attrition~.,train.new, importance=TRUE,ntree=1000)
+
+#Predict to test data file
+test.new$pred<- predict(modelRF2, newdata = test.new)
+#Export the file
+write.csv(test.new,'Case2PredictionsEliasenAttrition.csv')
+
+```
+
+#Salary Prediction
+#bring in original files from the first part, clean up, and combine for a more robust dataset
+#for model building
+
+```{r}
+s1 <- read.csv("CS2_data_comb.csv", header=T,na.strings=c(""))
+s2<-read.csv("CS2_Validation_Comb.csv", header=T,na.strings=c(""))
+
+s1 = s1[ , !(names(s1) %in% c('ID', 'Attrition', 'Over18', 'StandardHours', 'EmployeeCount',  'EmployeeNumber','Rand',
+                              'MonthlyRate', 'DailyRate', 'HourlyRate',
+                              'Age', 'Education', 'EducationField', 
+                              'EnvironmentSatisfaction','JobInvolvement', 'JobSatisfaction', 
+                              'RelationshipSatisfaction', 'WorkLifeBalance',
+                              'TotalWorkingYears','YearsAtCompany'))]
+
+s2 = s2[ , !(names(s2) %in% c('ID', 'Over18', 'StandardHours', 'EmployeeCount',  'EmployeeNumber','Rand',
+                              'MonthlyRate', 'DailyRate', 'HourlyRate',
+                              'Age', 'Education', 'EducationField', 
+                              'EnvironmentSatisfaction','JobInvolvement', 'JobSatisfaction', 
+                              'RelationshipSatisfaction', 'WorkLifeBalance',
+                              'TotalWorkingYears','YearsAtCompany'))]
+
+df <- rbind(s1,s2)
+
+df$StockOptionLevel <- factor(df$StockOptionLevel)
+df$OverTime <- factor(df$OverTime)
+df$OtherCoExp <- factor(df$OtherCoExp)
+df$PromoLast3 <- factor(df$PromoLast3)
+```
+
+#Histogram of Monthly Income
+```{r}
+histogram(df$MonthlyIncome)
+
+```
+
+#Monthly Income has a right skewed distribution, which we need to correct.  Let's take the log and see what happens.
+```{r}
+df$LMI<- log(df$MonthlyIncome)
+histogram(df$LMI)
+```
+#Check correlation - -Job Level and log(MonthlyIncome) has a correlation of .92.  Ran linear model with both, results were better with JobLevel included. Keep both
+```{r}
+nums <- select_if(df, is.numeric)
+nums = nums[ , !(names(nums) %in% c('MonthlyIncome'))]
+
+# comparison against the log(monthlysalary) column
+corr.df <- cbind(nums, df['LMI'])
+correlations <- cor(corr.df)
+
+# strong correlations with log(MonthlyIncome)
+corr.LMI <- as.matrix(sort(correlations[,'LMI'], decreasing = TRUE))
+corr.idx <- names(which(apply(corr.LMI, 1, function(x) (x > 0.7 | x < -0.7))))
+corrplot(as.matrix(correlations[corr.idx,corr.idx]), type = 'upper', method='color', 
+         addCoef.col = 'white', tl.cex = .7,cl.cex = .7, number.cex=.7)
+```
+
+#MODELING
+
+#Create training and testing datasets
+```{r}
+set.seed(11) 
+data_part<-createDataPartition(df$LMI,p=0.7,list=FALSE,times=1)
+train.ls<-df[data_part,]
+test.ls<-df[-data_part,]
+```
+
+##linear regression
+```{r}
+#Linear Model
+linreg <- lm(LMI~.-MonthlyIncome, data = train.ls)
+summary(linreg)
+```
+
+#prediction on a new set
+```{r warning=FALSE}
+pred1 <- predict(linreg,test.ls,type = "response")
+residuals <- test.ls$LMI - pred1
+linreg_pred <- data.frame("Predicted" = pred1, "Actual" = test.ls$LMI, "Residual" = residuals)
+plot(pred1, test.ls$LMI, main = "Linear Regression - Predicted vs. Actual log Monthly Income") 
+abline(0,1)
+```
+
+```{r}
+accuracy(pred1, test.ls$LMI)
+
+```
+
+#Random Forest Model
+```{r}
+
+RFLS <- randomForest(LMI~.-MonthlyIncome, data = train.ls, 
+                   importance =TRUE,ntree=1000,nodesize=7, na.action=na.roughfix)
+```
+
+
+Check variable importance so we can compare against linear
+```{r}
+# variable importance
+options(repr.plot.width=9, repr.plot.height=6)
+varImpPlot(RFLS, type=1)
+```
+
+#prediction
+```{r}
+
+rf.pred <- predict(RFLS, newdata=test.ls )
+
+plot(rf.pred, test.ls$LMI, main = "Random Forest Predicted vs. Actual log Monthly Income") 
+abline(0,1)
+```
+
+#Check accuracy
+```{r}
+accuracy(rf.pred, test.ls$LMI)
+```
+
+#Although the Random Forest has the lower RMSE score at .23, the logistic model is being used for prediction of the salaries as I am more comfortable in my understanding of that method. 
+
+#bring in prediction file
+```{r}
+mp<-read.csv("CS2_MonthlyIncome_Comb.csv", header=T,na.strings=c(""))
+mp = mp[ , !(names(mp) %in% c('ID', 'Attrition', 'Over18', 'StandardHours', 'EmployeeCount',  'EmployeeNumber','Rand', 'MonthlyRate', 'DailyRate', 'HourlyRate',
+                              'Age', 'Education', 'EducationField', 
+                              'EnvironmentSatisfaction','JobInvolvement', 'JobSatisfaction', 
+                              'RelationshipSatisfaction', 'WorkLifeBalance',
+                              'TotalWorkingYears','YearsAtCompany'))]
+
+mp$StockOptionLevel <- factor(mp$StockOptionLevel)
+mp$OverTime <- factor(mp$OverTime)
+mp$OtherCoExp <- factor(mp$OtherCoExp)
+mp$PromoLast3 <- factor(mp$PromoLast3)
+
+mp$MonthlyIncome<-0
+```
+
+#make predictions
+```{r}
+mp$logMIPred<-predict(linreg, newdata=mp)
+mp$MIPred<-exp(mp$logMIPred)
+#Export the file
+write.csv(mp,'Case2PredictionsEliasenSalaries.csv')
+```
+
+
+
+
+
+
+
+
